@@ -1,8 +1,15 @@
 import json
 from typing import List, Optional
 
-from fastapi import (Cookie, Depends, FastAPI, Query, WebSocket,
-                     WebSocketDisconnect, status)
+from fastapi import (
+    Cookie,
+    Depends,
+    FastAPI,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.requests import Request
 from fastapi.templating import Jinja2Templates
 
