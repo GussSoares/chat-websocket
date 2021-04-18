@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+    </head>
+    <body class="container">
+        <h1>WebSocket Chat</h1>
+        <div class="row">
+            <div class="col-md-6 col-lg-6 col-sm-6">
+                <label>Usuario: <input class="form-control" type="text" placeholder="digite seu nome" id="ws-id" /></label>
+                <button class="btn btn-success" onclick="connect()" id="connect">Conectar</button>
+                <form class="form" action="" onsubmit="sendMessage(event)">
+                    <label>Message: <input class="form-control" type="text" id="messageText" autocomplete="off"/></label>
+                    <button class="btn btn-success">Send</button>
+                </form>
+                <ul id='messages'>
+                </ul>
+            </div>
+            <div class="col-md-6 col-lg-6 col-sm-6">
+                <ul id="online">
+
+                </ul>
+            </div>
+        </div>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-Piv4xVNRyMGpqkS2by6br4gNJ7DXjqk09RmUpJ8jgGtD7zP9yug3goQfGII0yAns" crossorigin="anonymous"></script>
+        <script>
+            var client_id;
+            var ws;
+            // var ws_online = new WebSocket(`ws://localhost:8000/ws/get-users-online`);
+
+            // ws_online.onopen = function(event) {
+            //     ws_online.send('entrou')
+
+            //     var users = document.getElementById('online')
+            //     var user = document.createElement('li')
+            //     var content = document.createTextNode(event.data)
+            //     user.appendChild(content)
+            //     users.appendChild(user)
+
+            //     // console.log(event)
+            // };
+            // ws_online.onmessage = function (event) {
+            //     console.log('recebeu a msg')
+            //     console.log(event)
+            // }
+
+
+            function connect () {
+                client_id = document.querySelector("#ws-id").value;
+                // var token = document.getElementById("token")
+                ws = new WebSocket(`ws://localhost:8000/ws/client/${client_id}`);
+
+                ws.onopen = function(event) {
+                    //var messages = document.getElementById('messages')
+                    //var message = document.createElement('li')
+                    //var content = document.createTextNode(`${client_id} entrou!`)
+                    //message.appendChild(content)
+                    //messages.appendChild(message)
+                    ws.send('entrou')
+                }
+
+                ws.onmessage = function(event) {
+                    var messages = document.getElementById('messages')
+                    var message = document.createElement('li')
+                    var content = document.createTextNode(event.data.message)
+                    message.appendChild(content)
+                    messages.appendChild(message)
+                };
+            }
+
+            function sendMessage(event) {
+                var input = document.getElementById("messageText")
+                ws.send(input.value)
+                input.value = ''
+                event.preventDefault()
+            }
+
+            //document.querySelector("#connect").addEventListener('click', connect())
+
+        </script>
+    </body>
+</html>
