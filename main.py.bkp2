@@ -1,0 +1,143 @@
+import base64
+from typing import List
+
+from fastapi import FastAPI, WebSocket, Depends, Request, HTTPException, Query
+from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
+from fastapi_jwt_auth import AuthJWT
+from fastapi_jwt_auth.exceptions import AuthJWTException
+from pydantic import BaseModel
+from starlette.middleware import Middleware
+from starlette.middleware.authentication import AuthenticationMiddleware
+
+from app.middlewares.basic import BasicAuthBackend, security, security_websocket
+from app.middlewares.bearer import security_bearer_ws, check_token
+
+app = FastAPI()
+
+class User(BaseModel):
+    username: str
+    password: str
+
+class Settings(BaseModel):
+    authjwt_secret_key: str = "secret"
+
+@AuthJWT.load_config
+def get_config():
+    return Settings()
+
+@app.exception_handler(AuthJWTException)
+def authjwt_exception_handler(request: Request, exc: AuthJWTException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.message}
+    )
+
+
+html = """
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Authorize</title>
+    </head>
+    <body>
+        <h1>WebSocket Authorize</h1>
+        <p>Token:</p>
+        <textarea id="token" rows="4" cols="50"></textarea><br><br>
+        <button onclick="websocketfun()">Send</button>
+        <ul id='messages'>
+        </ul>
+        <script>
+            var ws;
+            const websocketfun = () => {
+                let token = document.getElementById("token").value
+                ws = new WebSocket(`ws://localhost:8000/ws?token=${token}`)
+                ws.onmessage = (event) => {
+                    let messages = document.getElementById('messages')
+                    let message = document.createElement('li')
+                    let content = document.createTextNode(event.data)
+                    message.appendChild(content)
+                    messages.appendChild(message)
+                }
+            }
+
+            const sendMessage = msg => {
+                ws.send(msg)
+            }
+        </script>
+    </body>
+</html>
+"""
+
+
+class ConnectionManager:
+    def __init__(self) -> None:
+        self.active_connections: List[dict] = []
+
+    async def connect(self, websocket: WebSocket, client_id: str):
+        await websocket.accept()
+        self.active_connections.append({"websocket": websocket, "client": client_id})
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    def get_websocket_by_client_id(self, client_id: str) -> WebSocket:
+        for elem in self.active_connections:
+            if elem.get("client") == client_id:
+                return elem.get("websocket")
+
+    def get_online_users(self) -> List[str]:
+        return [x.get("client") for x in self.active_connections]
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.get("websocket").send_json({"message": message})
+
+    async def broadcast_json(self, data: dict):
+        for connection in self.active_connections:
+            await connection.get("websocket").send_json(data)
+
+    async def propagate_online_users(self):
+        for connection in self.active_connections:
+            await connection.get("websocket").send_json({'online': self.get_online_users()})
+
+
+manager = ConnectionManager()
+template = Jinja2Templates(directory="templates")
+
+
+@app.get("/")
+async def get(request: Request):
+    return template.TemplateResponse(name="chat.html", context={"request": request})
+
+
+@app.websocket('/ws')
+async def websocket(websocket: WebSocket = Depends(check_token)):
+    await manager.connect(websocket, websocket.user.username)
+    try:
+        # Authorize.jwt_required("websocket",token=token)
+        # Authorize.jwt_optional("websocket",token=token)
+        # Authorize.jwt_refresh_token_required("websocket",token=token)
+        # Authorize.fresh_jwt_required("websocket",token=token)
+        receive = await websocket.receive()
+        if receive.get('text') == 'entrou':
+            await manager.propagate_online_users()
+        await websocket.send_json({"message": "Successfully Login!"})
+        # decoded_token = Authorize.get_raw_jwt(token)
+        # await websocket.send_text(f"Here your decoded token: {decoded_token}")
+    except AuthJWTException as err:
+        await websocket.send_text(err.message)
+        await websocket.close()
+
+@app.post('/login')
+def login(request: Request = Depends(security)):
+    # if request.username != "test" or request.password != "test":
+    #     raise HTTPException(status_code=401,detail="Bad username or password")
+
+    # access_token = Authorize.create_access_token(subject=user.username,fresh=True)
+    # refresh_token = Authorize.create_refresh_token(subject=user.username)
+    # return {"access_token": access_token, "refresh_token": refresh_token}
+    return {"access_token": base64.b64encode(f"{request.username}:{request.password}".encode('utf-8')).decode('utf-8')}
