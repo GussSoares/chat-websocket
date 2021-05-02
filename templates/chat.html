@@ -18,14 +18,13 @@
 </head>
 
 <body class="container">
-    <h1>Gustazap</h1>
+    <h1 id="title">Olá</h1>
     <div class="row">
         <div class="col-md-12 col-lg-12 col-sm-12 col-xl-12">
             <div class="row">
                 <div class="col-6 col-sm-6 col-md-6 col-lg-6 col-xl-6">
                     <h3>Login</h3>
                     <div class="input-group">
-                        <!-- <label>Username:</label> -->
                         <input class="form-control" type="text" placeholder="digite test" id="username" />
                         <div class="input-group-append">
                             <button class="btn btn-success" onclick="login()" id="connect">Entrar</button>
@@ -36,33 +35,22 @@
                     <h3>Usuários Online</h3>
                     <ul id="online"></ul>
                 </div>
-                <!-- <div class="col-md-6 col-lg-6 col-sm-6">
-                        <label>Password: <input class="form-control" type="password" placeholder="digite test" id="password" /></label>
-                    </div> -->
             </div>
-
-            <!-- <form class="form" action="" onsubmit="sendMessage(event)">
-                    <label>Message: <input class="form-control" type="text" id="messageText" autocomplete="off"/></label>
-                    <button class="btn btn-success">Send</button>
-                </form> -->
         </div>
-
     </div>
-    <!-- <hr> -->
+    <hr>
     <div class="row form">
-        <div class="col-md-12 col-lg-12 col-sm-12 ">
+        <div id="chat_container" class="col-md-12 col-lg-12 col-sm-12 d-none">
             <div id="chat" class="border rounded mb-2 form-body" style="height: 200px; overflow: scroll;">
                 <ul id='messages'></ul>
 
             </div>
-            <!-- <form onsubmit="sendMessage(evemt)"> -->
-                <div class="form-actions right input-group">
-                    <input class="form-control" type="text" placeholder="Digite uma mensagem..." id="messageText" />
-                    <div class="input-group-append">
-                        <button onclick="sendMessage()" class="btn btn-success">Enviar</button>
-                    </div>
+            <div class="form-actions right input-group">
+                <input class="form-control" type="text" placeholder="Digite uma mensagem..." id="messageText" />
+                <div class="input-group-append">
+                    <button onclick="sendMessage()" class="btn btn-success">Enviar</button>
                 </div>
-            <!-- </form> -->
+            </div>
         </div>
     </div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
@@ -95,24 +83,25 @@
                     accessToken = data.access_token;
                     localStorage.setItem('accessToken', accessToken)
                     connect(accessToken)
+                    $('#title').text(accessToken)
                 })
         }
 
-        function setToChat (elem) {
-            to = elem.innerHTML
+        function setToChat(accessToken) {
+            to = to ? null : accessToken
+            $('#chat_container').toggleClass('d-none')
+        }
+
+        function scrollDownChat () {
+            var n = $(document).height();
+            $('#chat').animate({ scrollTop: n }, 50);
         }
 
         function connect(token) {
-            // client_id = document.querySelector("#ws-id").value;
-            // var token = document.getElementById("token")
+
             ws = new WebSocket(`ws://localhost:8000/ws/${token}`);
 
             ws.onopen = function (event) {
-                //var messages = document.getElementById('messages')
-                //var message = document.createElement('li')
-                //var content = document.createTextNode(`${client_id} entrou!`)
-                //message.appendChild(content)
-                //messages.appendChild(message)
                 ws.send(({ type: 'websocket.connect' }))
             }
 
@@ -123,49 +112,45 @@
                     toastr.success('conectado')
                 }
 
+                // online list users
                 if (data.online) {
-                    console.log(data.online)
-                    // var messages = document.getElementById('online')
-                    // messages.innerHTML = ""
+                    // clear online users
                     $('#online').html('')
+
                     for (var user of data.online) {
-                        // var message = document.createElement('li')
-                        // var content = document.createTextNode(user)
-                        // message.appendChild(content)
-                        // messages.appendChild(message)
+
                         if (token != user) {
-                            $('#online').append(`<li><a href="#" onclick="setToChat(this)">${user}</a></li>`)
+                            $('#online').append(`<li><a href="#" onclick="setToChat(this.innerHTML)">${user}</a></li>`)
                         }
                     }
                 }
-                if (data.message) {
-                    // var messages = document.getElementById('messages')
-                    // var message = document.createElement('li')
-                    // var content = document.createTextNode(data.message)
-                    // message.appendChild(content)
-                    // messages.appendChild(message)
-                    $('#messages').append(`<li>${data.message}</li>`);
 
-                    var n = $(document).height();
-                    $('#chat').animate({ scrollTop: n }, 50);
+                // message in chat box
+                if (data.message) {
+
+                    $('#messages').append(`<li style="list-style-type: none;" class="alert alert-success">${data.message}</li>`);
+
+
+                    scrollDownChat()
                 }
 
-                // console.log(data.message)
+                if (data.from && data.from != to) {
+                    toastr.warning(`${data.from} enviou uma mensagem`).click(function () {
+                        setToChat(data.from)
+                        scrollDownChat()
+                    })
+                }
             };
         }
 
         function sendMessage() {
             var input = document.getElementById("messageText")
-            $('#messages').append(`<li class="text-right">${input.value}</li>`)
-            ws.send(JSON.stringify({message: input.value, to: to}))
+            $('#messages').append(`<li style="list-style-type: none;" class="text-right alert alert-dark">${input.value}</li>`)
+            ws.send(JSON.stringify({ message: input.value, to: to }))
             input.value = ''
 
-            var n = $(document).height();
-            $('#chat').animate({ scrollTop: n }, 50);
+            scrollDownChat()
         }
-
-            //document.querySelector("#connect").addEventListener('click', connect())
-
     </script>
 </body>
 

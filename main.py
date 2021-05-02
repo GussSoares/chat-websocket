@@ -39,8 +39,9 @@ class ConnectionManager:
     def get_online_users(self):
         return list(self.active_connections.keys())
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_json({"message": message})
+    async def send_personal_message(self, data: dict, websocket: WebSocket):
+        assert ('message' or 'from') in data, '"message" and "from" keys required in data'
+        await websocket.send_json(data)
 
     async def broadcast(self, message: str):
         for client_id, ws in self.active_connections.items():
@@ -96,7 +97,10 @@ async def websocket_endpoint(
 
                     to = manager.get_websocket_by_client_id(parsed.get("to"))
 
-                    await manager.send_personal_message(parsed.get("message"), to)
+                    await manager.send_personal_message({
+                        'from': access_token,
+                        'message': parsed.get("message"),
+                    }, to)
                 except Exception:
                     parsed = data.get("text")
                 await manager.propagate_online_users()
