@@ -1,6 +1,8 @@
 import json
+from datetime import datetime
 from typing import List, Optional
 
+import uvicorn
 from fastapi import (
     Cookie,
     Depends,
@@ -12,6 +14,8 @@ from fastapi import (
 )
 from fastapi.requests import Request
 from fastapi.templating import Jinja2Templates
+
+from database.mongo import db
 
 app = FastAPI()
 
@@ -101,7 +105,14 @@ async def websocket_endpoint(
                         'from': access_token,
                         'message': parsed.get("message"),
                     }, to)
-                except Exception:
+
+                    db.database.messages.insert_one({
+                        'timestamp': datetime.now(),
+                        'to': parsed.get('to'),
+                        'from': access_token,
+                        'message': parsed.get('message')
+                    })
+                except Exception as exc:
                     parsed = data.get("text")
                 await manager.propagate_online_users()
 
@@ -114,12 +125,40 @@ async def websocket_endpoint(
         # await manager.broadcast(f"{access_token} saiu")
 
 
-import base64
-
-
 @app.post("/get-token")
 async def get_token(request: Request):
     body = json.loads(await request.body())
     username = body.get("username")
     # return {"access_token": base64.b64encode(f"{body.get('username')}:{body.get('password')}".encode('utf-8')).decode('utf-8')}
     return {"access_token": username}
+
+
+@app.post("/get-chat")
+async def get_chat(request: Request):
+    body = json.loads(await request.body())
+    _to = body.get("to")
+    _from = body.get("from")
+    result = await db.database.messages.find({
+        '$or': [
+        {'to': _to, 'from': _from},
+        {'to': _from, 'from': _to}
+        ]
+    }, {'_id': False}).sort('timestamp', 1).to_list(length=100)
+
+    return {"messages": result}
+
+
+@app.on_event('startup')
+async def startup():
+    client = db.startup(database='teste')
+    buildinfo = await client.command('buildinfo')
+    print(f'MongoDB version {buildinfo.get("version")}')
+
+
+@app.on_event('shutdown')
+def shutdown():
+    print('desligando...')
+    db.shutdown()
+
+if __name__ == '__main__':
+    uvicorn.run('main:app', reload=True)

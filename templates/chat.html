@@ -68,9 +68,10 @@
         var client_id;
         var ws;
         var to;
+        var accessToken;
 
         async function login() {
-            let accessToken;
+
             let response = await fetch('http://localhost:8000/get-token', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -87,14 +88,30 @@
                 })
         }
 
-        function setToChat(accessToken) {
-            to = to ? null : accessToken
+        async function setToChat(to_user) {
+            to = to ? null : to_user
             $('#chat_container').toggleClass('d-none')
+            var messages = await getChat (accessToken, to)
+            buildMessagesInChat(messages)
+        }
+
+        function buildMessagesInChat (messages) {
+            // limpa chat
+            $('#messages').html('')
+            for (var msg of messages) {
+                // se mensagem para mim
+                if (msg.to === accessToken) {
+                    $('#messages').append(`<li style="list-style-type: none;" class="alert alert-success">${msg.message}</li>`);
+                } else {
+                    $('#messages').append(`<li style="list-style-type: none;" class="text-right alert alert-dark">${msg.message}</li>`)
+                }
+            }
+            scrollDownChat()
         }
 
         function scrollDownChat () {
-            var n = $(document).height();
-            $('#chat').animate({ scrollTop: n }, 50);
+            // var n = $('#chat').height();
+            $('#chat').animate({ scrollTop: 3000 }, 10);
         }
 
         function connect(token) {
@@ -150,6 +167,20 @@
             input.value = ''
 
             scrollDownChat()
+        }
+
+        async function getChat (from, to) {
+            return await fetch('http://localhost:8000/get-chat', {
+                method: 'POST',
+                body: JSON.stringify({
+                    to: to,
+                    from: from,
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                return data.messages;
+            })
         }
     </script>
 </body>
