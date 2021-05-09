@@ -89,8 +89,9 @@
         }
 
         async function setToChat(to_user) {
-            to = to ? null : to_user
-            $('#chat_container').toggleClass('d-none')
+            // to = to ? null : to_user
+            to = to_user
+            $('#chat_container').removeClass('d-none')
             var messages = await getChat (accessToken, to)
             buildMessagesInChat(messages)
         }

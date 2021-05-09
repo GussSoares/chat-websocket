@@ -130,7 +130,10 @@ async def get_token(request: Request):
     body = json.loads(await request.body())
     username = body.get("username")
     # return {"access_token": base64.b64encode(f"{body.get('username')}:{body.get('password')}".encode('utf-8')).decode('utf-8')}
-    return {"access_token": username}
+    if username not in manager.get_online_users():
+        return {"access_token": username}
+    else:
+        return {"access_token": username}
 
 
 @app.post("/get-chat")
