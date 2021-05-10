@@ -4,8 +4,8 @@ install:
   - pip install -r docs/requirements.txt
 before_install:
   - docker-compose up --build -d
-before_script:
-  - mongo -c 'create database teste;' -u mongo -p mongo
+# before_script:
+#   - mongo -c 'create database teste;' -u mongo -p mongo
 script:
   # - uvicorn app.main:app & APIURL=http://localhost:8000/api ./postman_tests/run-api-tests.sh
   - python main.py
